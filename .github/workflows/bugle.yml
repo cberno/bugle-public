@@ -36,6 +36,8 @@ jobs:
     timeout-minutes: 20
     env:
       HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+      # Delivery is whichever you've set up: the wall display, email, or both.
+      HAS_FEED: ${{ secrets.BUGLE_FEED_DEPLOY_KEY != '' }}
       HAS_EMAIL: ${{ secrets.GMAIL_ADDRESS != '' && secrets.GMAIL_APP_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v7
@@ -52,7 +54,15 @@ jobs:
           stamp=$(TZ="$tz" date +%F)
           feed_repo="${DISPLAY_REPO:-${GITHUB_REPOSITORY_OWNER}/bugle-display}"
           owner="${feed_repo%%/*}"
+          # With a display feed, the email shows the hosted image inline;
+          # without one, the paper rides along as an attachment.
+          if [ "$HAS_FEED" = "true" ]; then
+            body="<img src=\"https://${owner,,}.github.io/${feed_repo#*/}/archive/bugle_${stamp}.png\" width=\"936\" style=\"max-width:100%\" alt=\"$paper\">"
+          else
+            body="<p>Today's edition of $paper is attached.</p>"
+          fi
           {
+            echo "email_body=$body"
             echo "edition=$edition"
             echo "stamp=$stamp"
             echo "paper=$paper"
@@ -120,7 +130,7 @@ jobs:
           retention-days: 14
 
       - name: Open the public delivery desk
-        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true'
+        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true' && env.HAS_FEED == 'true'
         uses: actions/checkout@v7
         with:
           repository: ${{ steps.check.outputs.feed_repo }}
@@ -128,7 +138,7 @@ jobs:
           ssh-key: ${{ secrets.BUGLE_FEED_DEPLOY_KEY }}
 
       - name: Publish the image feed
-        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true'
+        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true' && env.HAS_FEED == 'true'
         run: |
           mkdir -p public-feed/archive
           cp latest.png public-feed/latest.png
@@ -146,17 +156,15 @@ jobs:
         continue-on-error: true
         uses: dawidd6/action-send-mail@v18
         with:
-          server_address: smtp.gmail.com
-          server_port: 465
+          server_address: ${{ vars.SMTP_SERVER || 'smtp.gmail.com' }}
+          server_port: ${{ vars.SMTP_PORT || 465 }}
           secure: true
           username: ${{ secrets.GMAIL_ADDRESS }}
           password: ${{ secrets.GMAIL_APP_PASSWORD }}
           from: '${{ steps.check.outputs.paper }} <${{ secrets.GMAIL_ADDRESS }}>'
-          to: ${{ secrets.GMAIL_ADDRESS }}
+          to: ${{ vars.BUGLE_EMAIL_TO || secrets.GMAIL_ADDRESS }}
           subject: "${{ steps.check.outputs.paper }} — ${{ steps.check.outputs.edition }}"
-          html_body: >
-            <img src="${{ steps.check.outputs.pages }}/archive/bugle_${{ steps.check.outputs.stamp }}.png"
-                 width="936" style="max-width:100%" alt="${{ steps.check.outputs.paper }}">
+          html_body: ${{ steps.check.outputs.email_body }}
           attachments: latest.png
 
       - name: Archive the press record

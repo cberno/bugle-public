@@ -1,7 +1,8 @@
 # Setup
 
-About an hour, mostly waiting on accounts. Everything happens in a web
-browser except one command in Part 4, which you can copy and paste.
+About an hour, mostly waiting on accounts (half that if you only want it by
+email). Everything happens in a web browser except one command in Part 4B,
+which you can copy and paste.
 
 **What you need**
 
@@ -10,9 +11,10 @@ browser except one command in Part 4, which you can copy and paste.
   the fact checks. Typically a few dollars a month. Set a monthly spend
   limit under Settings → Limits so there are never surprises.
 - An **eBird API key** (free): ebird.org/api/keygen (needs an eBird account)
-- A **TRMNL X** e-ink display: usetrmnl.com. The layout is made for the X's
-  1404×1872 screen hung in portrait. The original TRMNL (800×480) is too
-  small for it.
+- **Optional:** a **TRMNL X** e-ink display (usetrmnl.com) to hang on the
+  wall. Without one, the paper arrives by email every morning instead, or as
+  well. The layout is made for the X's 1404×1872 screen hung in portrait; the
+  original TRMNL (800×480) is too small for it.
 
 ---
 
@@ -72,7 +74,33 @@ preferences (do you love heat? hate wind?), list birds never to feature, or
 change the motto. Running setup again later re-finds location, news, and
 birds, and keeps the rest.
 
-## Part 4 — The display feed (15 minutes)
+## Part 4 — Delivery: email, the wall, or both
+
+Set up either one, or both. With neither, the paper still prints every
+morning and `latest.png` in your repository is always today's edition.
+
+### 4A — By email (5 minutes)
+
+The paper arrives each morning as an image. It's attached, or shown right in
+the email if you also do 4B.
+
+1. **Make an app password.** Your Google account needs 2-Step Verification
+   (myaccount.google.com/security). Then go to
+   **myaccount.google.com/apppasswords**, name it `Bugle`, and click Create.
+   Google shows a 16-character password. Copy it.
+2. **Add two secrets** (Settings → Secrets and variables → Actions → New
+   repository secret):
+   - `GMAIL_ADDRESS`: your Gmail address. The paper is sent from it, and to it.
+   - `GMAIL_APP_PASSWORD`: the 16-character password, spaces and all.
+3. **Send it to others too** (optional): on the same page, open the
+   **Variables** tab → New variable `BUGLE_EMAIL_TO` with a comma-separated
+   list, e.g. `me@gmail.com, partner@example.com`.
+4. **Not Gmail?** Any provider that offers SMTP works (Fastmail, iCloud,
+   Outlook...). Put that account's address and app password in the same two
+   secrets, and add Variables `SMTP_SERVER` (e.g. `smtp.fastmail.com`) and
+   `SMTP_PORT` (usually `465`).
+
+### 4B — On the wall (15 minutes; only if you have a TRMNL)
 
 The TRMNL needs a public web address for the image. GitHub Pages provides one
 for free, but only from a public repository, so the press keeps your code
@@ -118,8 +146,9 @@ private and pushes *only the finished image* to a second, public repository.
    **Artifacts**, download the zip, and open `latest.png`. That's your paper.
    Not happy with something? Edit `bugle.toml` and dry-run again.
 3. Ready? **Run workflow** again with **no boxes checked**. When it's green,
-   open `https://yourusername.github.io/bugle-display/latest.png`
-   (lowercase username). Pages can take a few minutes the first time.
+   check your inbox (4A) and/or open
+   `https://yourusername.github.io/bugle-display/latest.png` (4B; lowercase
+   username). Pages can take a few minutes the first time.
 
 From now on it prints itself in the early morning, between about 3 and 4am
 your time anywhere in the US. GitHub checks a few times each morning and the
@@ -130,7 +159,7 @@ paper after a change, run **Print the paper** with **Force print** checked.
 without any changes. Elsewhere, edit the `cron:` line in
 `.github/workflows/bugle.yml` to the UTC hours that match about 3–9am for you.
 
-## Part 6 — The wall (10 minutes)
+## Part 6 — The wall (10 minutes; only if you have a TRMNL)
 
 1. Set up the TRMNL X with the TRMNL app and claim it at **usetrmnl.com**.
 2. **Plugins → Image Display** → paste your display URL from Part 5 → Save.
@@ -160,7 +189,11 @@ without any changes. Elsewhere, edit the `cron:` line in
 - **Setup picked the wrong town.** Run it again with the state or country:
   `Springfield, Illinois`, or use a ZIP code.
 - **The publish step fails with "Permission denied (publickey)".** The deploy
-  key is missing, or "Allow write access" wasn't checked (Part 4, steps 4–5).
+  key is missing, or "Allow write access" wasn't checked (Part 4B, steps 4–5).
+- **No email.** Check spam first. Then open the run, expand **Deliver to
+  the inbox**, and read the error. "Username and Password not accepted" means
+  the app password is wrong or 2-Step Verification is off (Part 4A, step 1).
+  If that step doesn't appear at all, a secret name is misspelled.
 - **The URL shows yesterday's paper.** Pages caches for a few minutes. If it
   stays stale, check the Actions tab to see whether this morning's run happened.
 - **Local News says "Wire down".** One of your feeds didn't answer. Run setup

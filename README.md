@@ -1,7 +1,8 @@
 # A household newspaper for your wall
 
-One page, printed fresh every morning at 4am, on an e-ink display that looks
-like paper. No screen glow, no feeds to scroll, no notifications. It reads:
+One page, printed fresh every morning before you wake, on an e-ink display
+that looks like paper, in your inbox, or both. No feeds to scroll, no
+notifications. It reads:
 
 - **The masthead.** Your paper, your name for it.
 - **Morning Line.** A short quotation from a curated list, never repeated soon.
@@ -21,7 +22,8 @@ replaced with plain sourced text.
 
 **To set one up, follow [SETUP.md](SETUP.md).** About an hour, mostly waiting
 on accounts. You'll need a GitHub account, an Anthropic API key (a few dollars
-a month), a free eBird key, and a TRMNL X display.
+a month), and a free eBird key. A TRMNL X display is optional; without one,
+the paper comes by email.
 
 Setup is one button: tell it where you live and what to call the paper, and
 it finds your weather, time zone, local news sources (testing every feed), and
@@ -31,14 +33,16 @@ the right-sized circle for nearby birds.
 
 ```
  every morning, on GitHub's servers (free)
- ┌──────────────────────────────────────────────────────────────┐
- │ weather (Open-Meteo, NWS) ─┐                                 │
- │ local news (your RSS feeds) ┼─► editor (Claude) ─► copy desk ─┼─► latest.png
- │ eBird + Wikipedia photo ────┘        ▲             (checks)  │      │
- │ your calendar (birthdays) ───────────┘                       │      │
- └──────────────────────────────────────────────────────────────┘      │
-                                                                        ▼
-                   your public "display" repo on GitHub Pages ── TRMNL X on the wall
+ ┌───────────────────────────────────────────────────────────────┐
+ │ weather (Open-Meteo, NWS) ──┐                                 │
+ │ local news (your feeds) ────┼─► editor (Claude) ─► copy desk ─┼─► latest.png
+ │ eBird + Wikipedia photo ────┤                      (checks)   │       │
+ │ your calendar (birthdays) ──┘                                 │       │
+ └───────────────────────────────────────────────────────────────┘       │
+                                         ┌───────────────────────────────┤
+                                         ▼                               ▼
+                                  your inbox (optional)    public "display" repo on GitHub
+                                                           Pages → TRMNL X on the wall (optional)
 ```
 
 Your code, keys, and history stay in your **private** repository. Only the
