@@ -98,4 +98,13 @@ class MetricWeatherTests(unittest.TestCase):
         self.assertEqual((weather["high"], weather["low"]), (15, 5))
         self.assertEqual(weather["hours"][0]["wind"], 16)
         self.assertEqual(weather["day"].high_f, 59)          # the engine still grades in °F
+        self.assertIn("rain_chance_pct", weather["hours"][0])
         self.assertEqual(get.call_args.kwargs["params"]["timezone"], bugle.TZ.key)
+
+    def test_page_and_grade_agree_on_metric_temperatures(self):
+        from unittest.mock import patch
+        with patch.object(bugle, "METRIC", True):
+            for f in (50.5, 50.9, 51.4, 33.5, -0.5):
+                page = bugle.temp(f)
+                reason = bugle.localize(f"High {bugle.ge.whole(f)}°F.")
+                self.assertEqual(reason, f"High {page}°C.", f)

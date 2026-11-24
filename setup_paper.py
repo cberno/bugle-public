@@ -322,8 +322,10 @@ def build_config(current, place, feeds, hoods, radius_km, name=None, household=N
     grounds = current.get("grounds", {})
 
     edition = paper.get("edition", "")
-    if not edition or edition == TEMPLATE_DEFAULTS["edition"]:
-        edition = f"{place['name']} Edition"
+    previous_town = current.get("location", {}).get("description", "").split(",")[0].strip()
+    if (not edition or edition == TEMPLATE_DEFAULTS["edition"]
+            or (previous_town and edition == f"{previous_town} Edition")):
+        edition = f"{place['name']} Edition"   # setup's own choice; a custom one is kept
     launch = paper.get("launch_date")
     if not launch or launch == TEMPLATE_DEFAULTS["launch_date"] or launch > today:
         launch = today

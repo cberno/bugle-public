@@ -266,8 +266,11 @@ def clock(stamp):
 
 
 def temp(f):
-    """The engine thinks in °F; the page speaks the household's units."""
-    return round((f - 32) * 5 / 9) if METRIC else round(f)
+    """The engine thinks in °F; the page speaks the household's units. Round
+    the °F exactly as the engine does first, so every number on the page and in
+    the grade's reasoning converts to the same °C."""
+    f = ge.whole(f)
+    return round((f - 32) * 5 / 9) if METRIC else f
 
 
 def speed(mph):
@@ -303,7 +306,7 @@ def get_weather():
             hours.append(dict(time=f"{hh:02d}:00",
                               temp=temp(h["temperature_2m"][i]),
                               feels=temp(h["apparent_temperature"][i]),
-                              rain=h["precipitation_probability"][i], sky=sky,
+                              rain_chance_pct=h["precipitation_probability"][i], sky=sky,
                               wind=speed(h["wind_speed_10m"][i])))
     return dict(units="°C, km/h" if METRIC else "°F, mph",
                 high=temp(d["temperature_2m_max"][0]),
@@ -934,7 +937,7 @@ def bird_for_page(bird):
     meta = [f"Reported {when.lower() if when in ('Today', 'Yesterday') else when}".strip()]
     if bird["place"]:
         meta.append(bird["place"])
-    meta.append(f"{bird['miles']:g} mi away")
+    meta.append(f"{round(bird['km'], 1):g} km away" if METRIC else f"{bird['miles']:g} mi away")
     return dict(common_name=bird["common_name"], scientific_name=bird["scientific_name"],
                 photo=bird["photo"], credit=bird["credit"], meta=" · ".join(meta))
 

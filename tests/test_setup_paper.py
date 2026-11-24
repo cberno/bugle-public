@@ -151,6 +151,15 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg["local_news"]["feeds"], ["https://voice.example/feed"])
         self.assertIn("Takoma Park", cfg["local_news"]["focus"])
 
+    def test_moving_updates_the_edition_unless_it_was_customized(self):
+        moved = dict(self.current, paper=dict(self.current["paper"], edition="Missoula Edition"),
+                     location={"description": "Missoula, Montana"})
+        text = sp.build_config(moved, BRISTOL, [], [], 8, today=dt.date(2026, 11, 24))
+        self.assertEqual(tomllib.loads(text)["paper"]["edition"], "Bristol Edition")
+        custom = dict(moved, paper=dict(moved["paper"], edition="Porch Edition"))
+        text = sp.build_config(custom, BRISTOL, [], [], 8, today=dt.date(2026, 11, 24))
+        self.assertEqual(tomllib.loads(text)["paper"]["edition"], "Porch Edition")
+
     def test_abroad_means_metric(self):
         _, cfg = self.build(place=BRISTOL)
         self.assertEqual(cfg["weather"]["units"], "metric")
