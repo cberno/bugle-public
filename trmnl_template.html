@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: 'Playfair'; src: url('fonts/Playfair.ttf'); }
+  @font-face { font-family: 'Garamond'; src: url('fonts/EBGaramond.ttf'); }
+  @font-face { font-family: 'Garamond'; font-style: italic; src: url('fonts/EBGaramondItalic.ttf'); }
+
+  @page { size: 1404px 1872px; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1404px; height: 1872px; padding: 40px 56px 30px 56px;
+    display: flex; flex-direction: column;
+    font-family: 'Garamond', serif; font-size: 29px; color: #000; line-height: 1.38;
+    background: #fff;
+  }
+  body > * { flex: none; }
+
+  /* ---- masthead ---- */
+  .masthead { text-align: center; }
+  .masthead h1 {
+    font-family: 'Playfair', serif; font-weight: 700; font-size: {{ masthead.size }}px;
+    letter-spacing: 0.13em; text-transform: uppercase; line-height: 1; white-space: nowrap;
+  }
+  .masthead h1 .lead { font-size: {{ masthead.lead_size }}px; }
+  .dateline {
+    border-top: 5px solid #000; border-bottom: 2px solid #000;
+    margin-top: 14px; padding: 7px 0 9px;
+    font-size: 30px; letter-spacing: 0.04em; text-align: center; line-height: 1.3;
+  }
+  .dateline .sep { padding: 0 0.45em; }
+
+  /* ---- morning line ---- */
+  .morning { padding: 14px 0 16px; border-bottom: 2px solid #000; }
+  .morning-row { display: table; width: 100%; table-layout: fixed; }
+  .morning-label {
+    display: table-cell; width: 150px; vertical-align: middle; padding-left: 4px;
+    font-family: 'Playfair', serif; font-weight: 700; font-size: 18px;
+    letter-spacing: 0.15em; line-height: 1.3; text-transform: uppercase;
+  }
+  .morning-copy { display: table-cell; vertical-align: middle; padding: 2px 12px 2px 30px; text-align: center; border-left: 2px solid #000; }
+  .morning .q { font-style: italic; font-size: 41px; line-height: 1.22; }
+  .morning .attr { font-size: 25px; letter-spacing: 0.05em; margin-top: 6px; }
+
+  .sec-head {
+    font-family: 'Playfair', serif; font-weight: 700; font-size: 32px;
+    letter-spacing: 0.13em; text-transform: uppercase;
+    border-bottom: 4px solid #000; padding-bottom: 7px; margin-bottom: 14px;
+  }
+
+  /* ---- weather ---- */
+  .weather { margin-top: 24px; }
+  .gradebox { border: 4px solid #000; padding: 14px 20px; display: flex; align-items: center; }
+  .grade {
+    border: 3px solid #000; width: 112px; height: 112px; flex: 0 0 112px;
+    font-family: 'Playfair', serif; font-weight: 700; font-size: 58px;
+    display: flex; align-items: center; justify-content: center; margin-right: 24px;
+  }
+  .grade.long { font-size: 50px; letter-spacing: -0.02em; }
+  .gradetext .kicker { font-weight: 700; font-size: 31px; line-height: 1.2; }
+  .gradetext p { font-size: 25px; margin-top: 4px; line-height: 1.35; }
+  .fine { font-size: 22px; margin-top: 8px; }
+
+  /* ---- birthdays ---- */
+  .birthdays { margin-top: 14px; padding: 6px 0 9px; border-bottom: 2px solid #000; font-size: 29px; }
+  .birthdays .label {
+    font-family: 'Playfair', serif; font-weight: 700; font-size: 21px;
+    letter-spacing: 0.13em; text-transform: uppercase; margin-right: 24px;
+  }
+
+  /* ---- the district ---- */
+  .district { margin-top: 26px; height: 462px; overflow: hidden; }
+  .hl { padding: 16px 0; border-bottom: 1px dotted #555; font-size: 31px; line-height: 1.42; }
+  .hl:last-child { border-bottom: none; }
+  .hl b { font-family: 'Playfair', serif; font-size: 31px; }
+
+  /* ---- bird of the day / grounds report: takes whatever is left ---- */
+  .feature { flex: 1 1 auto; min-height: 0; margin-top: 18px; display: flex; flex-direction: column; overflow: hidden; }
+  .feature .sec-head { flex: none; }
+  .bird { flex: 1 1 0; min-height: 0; display: flex; gap: 40px; }
+  .photo { flex: 0 0 640px; display: flex; flex-direction: column; min-height: 0; position: relative; }
+  .photo img {
+    flex: 1 1 0; min-height: 0; height: 0; width: 640px; display: block;
+    object-fit: cover; object-position: 50% 45%; border: 3px solid #000;
+  }
+  .credit {
+    position: absolute; z-index: 2; right: 3px; bottom: 3px; max-width: 600px;
+    background: #fff; padding: 3px 9px 2px; font-size: 16px; font-style: italic; line-height: 1.2;
+  }
+  .bird-text { flex: 1; min-width: 0; display: block; }
+  .bird-name {
+    font-family: 'Playfair', serif; font-weight: 700; font-size: 58px; line-height: 1.05;
+  }
+  .bird-sci { font-style: italic; font-size: 29px; margin-top: 6px; }
+  .bird-rule { border-top: 2px solid #000; width: 90px; margin: 18px 0 16px; }
+  .bird-note { font-size: 35px; line-height: 1.42; }
+  .bird-meta { margin-top: 22px; font-size: 23px; letter-spacing: 0.02em; line-height: 1.3; }
+  .grounds-only p { font-size: 44px; line-height: 1.45; margin-top: 16px; }
+
+  /* ---- colophon ---- */
+  .colophon {
+    margin-top: 18px; padding-top: 14px; border-top: 2px solid #000;
+    font-family: 'Garamond', serif; font-style: italic;
+    font-size: 46px; line-height: 1.15; letter-spacing: 0.02em; text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="masthead">
+  <h1>{% for w in masthead.words %}<span class="lead">{{ w.lead }}</span>{{ w.rest }}{% if not loop.last %} {% endif %}{% endfor %}</h1>
+  <div class="dateline">{{ date_line }}{% if edition %}<span class="sep">·</span>{{ edition }}{% endif %}<span class="sep">·</span>Vol. {{ volume }}</div>
+</div>
+
+<div class="morning"><div class="morning-row">
+  <div class="morning-label">Morning<br>Line</div>
+  <div class="morning-copy">
+    <div class="q">&ldquo;{{ quote.text }}&rdquo;</div>
+    <div class="attr">— {{ quote.attr }}</div>
+  </div>
+</div></div>
+
+<div class="weather">
+  <div class="gradebox">
+    <div class="grade{% if weather.grade|length > 1 %} long{% endif %}">{{ weather.grade }}</div>
+    <div class="gradetext">
+      <div class="kicker">{{ weather.verdict }}</div>
+      <p>{{ weather.editorial }}</p>
+    </div>
+  </div>
+  <p class="fine">High {{ weather.high }}° · low {{ weather.low }}° · max rain {{ weather.max_rain }}% · sunrise {{ weather.sunrise }} · sunset {{ weather.sunset }}</p>
+</div>
+
+{% if birthdays %}
+<div class="birthdays">
+  <span class="label">Birthdays</span>{% for b in birthdays %}&#127874; {{ b }}{% if not loop.last %} · {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<div class="district">
+  <div class="sec-head">{{ district_label }}</div>
+  {% for h in headlines.local %}<div class="hl"><b>{{ h.head }}</b> — {{ h.line }}</div>{% endfor %}</div>
+
+{% if bird %}
+<div class="feature">
+  <div class="sec-head">Bird of the Day</div>
+  <div class="bird">
+    <div class="photo">
+      <img src="{{ bird.photo }}" alt="">
+      <div class="credit">{{ bird.credit }}</div>
+    </div>
+    <div class="bird-text">
+      <div class="bird-name">{{ bird.common_name }}</div>
+      <div class="bird-sci">{{ bird.scientific_name }}</div>
+      <div class="bird-rule"></div>
+      <div class="bird-note">{{ grounds }}</div>
+      <div class="bird-meta">{{ bird.meta }}</div>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="feature grounds-only">
+  <div class="sec-head">{{ grounds_label }}</div>
+  <p>{{ grounds }}</p>
+</div>
+{% endif %}
+
+{% if motto %}<div class="colophon">{{ motto }}</div>{% endif %}
+
+</body>
+</html>

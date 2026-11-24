@@ -1,0 +1,163 @@
+name: Print the paper
+
+on:
+  schedule:
+    # Three tries each morning; once one succeeds, the others skip.
+    # Not on Eastern time? Change the three timezone lines (and the
+    # timezone in bugle.toml). Avoid minute 0, when GitHub is busiest.
+    - cron: "17 4 * * *"   # 4:17am — the real run
+      timezone: "America/New_York"
+    - cron: "17 5 * * *"   # 5:17am — insurance
+      timezone: "America/New_York"
+    - cron: "47 5 * * *"   # 5:47am — last resort
+      timezone: "America/New_York"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Print again even if today's edition already exists"
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: "Build and check without publishing (proof is saved under Artifacts)"
+        required: false
+        default: false
+        type: boolean
+
+# Serialize retries so two triggers cannot print the same edition at once.
+concurrency:
+  group: bugle-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
+      HAS_EMAIL: ${{ secrets.GMAIL_ADDRESS != '' && secrets.GMAIL_APP_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check the docket
+        id: check
+        env:
+          FORCE_PRINT: ${{ github.event_name == 'workflow_dispatch' && (inputs.force || inputs.dry_run) || false }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+          DISPLAY_REPO: ${{ vars.DISPLAY_REPO }}
+        run: |
+          read -r tz paper <<< "$(python3 -c "import tomllib; c = tomllib.load(open('bugle.toml', 'rb')); print(c['paper']['timezone'], c['paper']['name'])")"
+          edition=$(TZ="$tz" date +'%A, %B %-d, %Y')
+          stamp=$(TZ="$tz" date +%F)
+          feed_repo="${DISPLAY_REPO:-${GITHUB_REPOSITORY_OWNER}/bugle-display}"
+          owner="${feed_repo%%/*}"
+          {
+            echo "edition=$edition"
+            echo "stamp=$stamp"
+            echo "paper=$paper"
+            echo "dry_run=$DRY_RUN"
+            echo "feed_repo=$feed_repo"
+            echo "pages=https://${owner,,}.github.io/${feed_repo#*/}"
+          } >> "$GITHUB_OUTPUT"
+
+          # The template repo (and a fresh copy before setup) has no key:
+          # skip quietly instead of failing every morning.
+          if [ "$HAS_KEY" != "true" ]; then
+            echo "::notice::No ANTHROPIC_API_KEY secret yet; see SETUP.md. Nothing printed."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Always check the current remote branch. A queued retry may have
+          # been created before the first run pushed today's archive file.
+          git fetch --quiet origin "$GITHUB_REF_NAME"
+          if [ "$FORCE_PRINT" != "true" ] && \
+             git cat-file -e "origin/$GITHUB_REF_NAME:archive/bugle_${stamp}.png" 2>/dev/null; then
+            echo "Today's edition already exists; skipping this retry."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install the pressroom
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q poppler-utils imagemagick \
+            libpango-1.0-0 libpangocairo-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0
+          pip install -q -r requirements.txt
+
+      - name: Print today's edition
+        if: steps.check.outputs.skip != 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          BUGLE_ICS_URL: ${{ secrets.BUGLE_ICS_URL }}
+          BUGLE_BIRTHDAYS_ICS_URL: ${{ secrets.BUGLE_BIRTHDAYS_ICS_URL }}
+          EBIRD_API_KEY: ${{ secrets.EBIRD_API_KEY }}
+        run: |
+          mkdir -p archive
+          python bugle_action.py
+
+      - name: Save the press proof
+        if: steps.check.outputs.skip != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: bugle-${{ steps.check.outputs.stamp }}
+          path: |
+            latest.png
+            proof-*.png
+            evaluations/
+          retention-days: 14
+
+      - name: Open the public delivery desk
+        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.check.outputs.feed_repo }}
+          path: public-feed
+          ssh-key: ${{ secrets.BUGLE_FEED_DEPLOY_KEY }}
+
+      - name: Publish the image feed
+        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true'
+        run: |
+          mkdir -p public-feed/archive
+          cp latest.png public-feed/latest.png
+          cp "archive/bugle_${{ steps.check.outputs.stamp }}.png" public-feed/archive/
+          cd public-feed
+          git config user.name "${{ steps.check.outputs.paper }}"
+          git config user.email "bugle@users.noreply.github.com"
+          git add latest.png archive/
+          git commit -m "Edition ${{ steps.check.outputs.stamp }}" || echo "Public edition already current"
+          git push
+
+      - name: Deliver to the inbox (optional)
+        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true' && env.HAS_EMAIL == 'true'
+        # Email must never prevent the archive and history from being saved.
+        continue-on-error: true
+        uses: dawidd6/action-send-mail@v18
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.GMAIL_ADDRESS }}
+          password: ${{ secrets.GMAIL_APP_PASSWORD }}
+          from: '${{ steps.check.outputs.paper }} <${{ secrets.GMAIL_ADDRESS }}>'
+          to: ${{ secrets.GMAIL_ADDRESS }}
+          subject: "${{ steps.check.outputs.paper }} — ${{ steps.check.outputs.edition }}"
+          html_body: >
+            <img src="${{ steps.check.outputs.pages }}/archive/bugle_${{ steps.check.outputs.stamp }}.png"
+                 width="936" style="max-width:100%" alt="${{ steps.check.outputs.paper }}">
+          attachments: latest.png
+
+      - name: Archive the press record
+        if: steps.check.outputs.skip != 'true' && steps.check.outputs.dry_run != 'true'
+        continue-on-error: true
+        run: |
+          git config user.name "${{ steps.check.outputs.paper }}"
+          git config user.email "bugle@users.noreply.github.com"
+          git add latest.png archive/ evaluations/ editorial_history.json
+          git commit -m "Edition ${{ steps.check.outputs.stamp }}" || echo "Nothing new to print"
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
+          git push

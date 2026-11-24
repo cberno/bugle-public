@@ -1,0 +1,161 @@
+# Setup
+
+About an hour, mostly waiting on accounts. Everything happens in a web
+browser except one command in Part 4, which you can copy and paste.
+
+**What you need**
+
+- A **GitHub** account (free): github.com
+- An **Anthropic API** account: console.anthropic.com. It runs the editor and
+  the fact checks. Typically a few dollars a month. Set a monthly spend
+  limit under Settings → Limits so there are never surprises.
+- An **eBird API key** (free): ebird.org/api/keygen (needs an eBird account)
+- A **TRMNL X** e-ink display: usetrmnl.com. The layout is made for the X's
+  1404×1872 screen hung in portrait. The original TRMNL (800×480) is too
+  small for it.
+
+---
+
+## Part 1 — Make your own copy (5 minutes)
+
+1. On this template's GitHub page, click **Use this template → Create a new
+   repository**.
+2. Name it whatever you like (`my-bugle`, `the-herald`, ...).
+3. Choose **Private**. Your history file, archive, and settings will live
+   here, and nobody else needs to see them.
+4. Click **Create repository**.
+
+## Part 2 — Make it yours (10 minutes)
+
+In your new repository, click **`bugle.toml`**, then the **pencil icon** to
+edit. Every line has a comment explaining it. At minimum, change:
+
+- `name`: your paper's name. This is the fun part.
+- `edition`, `motto`, `launch_date` (the day you want Vol. I to be).
+- `latitude` / `longitude`: roughly where you live. Right-click your
+  neighborhood in Google Maps and the coordinates appear at the top of the
+  menu. Two decimals is plenty and keeps your exact address out of it.
+- `description` under `[location]` and `[household]`.
+- `feeds` and `focus` under `[local_news]`: the neighborhood news sources you
+  actually read. Most local sites have a feed at `/feed/` or `/rss`; search
+  "*site name* RSS" if not.
+
+Click **Commit changes**.
+
+## Part 3 — The keys (10 minutes)
+
+Keys go in GitHub's locked secret store, never in the code. In your
+repository: **Settings → Secrets and variables → Actions → New repository
+secret**. Add each of these (name exactly as written):
+
+| Secret name | Where to get it | Needed? |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys → Create Key | **Required** |
+| `EBIRD_API_KEY` | ebird.org/api/keygen | Strongly recommended (no key = no Bird of the Day) |
+| `BUGLE_BIRTHDAYS_ICS_URL` | Google Calendar → ⚙ Settings → click the **Birthdays** calendar on the left → *Integrate calendar* → **Secret address in iCal format** | Optional |
+| `BUGLE_ICS_URL` | Same screen, for your main calendar. Events with "birthday" in the title print. | Optional |
+| `OPENAI_API_KEY` | platform.openai.com → API keys. A backup editor if Claude is ever down. | Optional |
+
+Birthdays print **first names only**. That's enforced in the code, because
+the finished image is public.
+
+## Part 4 — The display feed (15 minutes)
+
+The TRMNL needs a public web address for the image. GitHub Pages provides one
+for free, but only from a public repository, so the press keeps your code
+private and pushes *only the finished image* to a second, public repository.
+
+1. **Create the public display repository.** GitHub → **+** → **New
+   repository** → name it **`bugle-display`** → **Public** → check **Add a
+   README** → **Create repository**.
+   (If you use a different name, go back to your private repo → Settings →
+   Secrets and variables → Actions → **Variables** tab → New variable named
+   `DISPLAY_REPO` with the value `yourusername/your-display-name`.)
+
+2. **Turn on Pages** in the display repo: **Settings → Pages** → Source:
+   **Deploy from a branch** → Branch: **main**, folder **/ (root)** → Save.
+
+3. **Make a key that lets the press publish there.** On a Mac, open
+   Terminal (Windows: PowerShell) and paste:
+
+   ```
+   ssh-keygen -t ed25519 -N "" -C "bugle-press" -f bugle_deploy_key
+   ```
+
+   That creates two files in your home folder: `bugle_deploy_key` (private)
+   and `bugle_deploy_key.pub` (public). Open them in any text editor (Mac:
+   `open -e bugle_deploy_key.pub`; Windows: `notepad bugle_deploy_key.pub`).
+
+4. **Public half → display repo.** In `bugle-display`: **Settings → Deploy
+   keys → Add deploy key**. Title `bugle-press`, paste the entire contents of
+   `bugle_deploy_key.pub`, **check "Allow write access"**, Add key.
+
+5. **Private half → your private repo.** In your private repo: **Settings →
+   Secrets and variables → Actions → New repository secret**. Name
+   `BUGLE_FEED_DEPLOY_KEY`, paste the entire contents of `bugle_deploy_key`,
+   including the `-----BEGIN` and `-----END` lines. Save.
+
+6. Delete both key files from your computer. GitHub has what it needs.
+
+## Part 5 — First edition (10 minutes)
+
+1. In your private repo, open the **Actions** tab. If GitHub asks, click
+   **"I understand my workflows, go ahead and enable them."**
+2. Click **Print the paper** in the left sidebar → **Run workflow** → check
+   **Dry run** → **Run workflow**. A dry run builds the paper without
+   publishing it.
+3. When it turns green (about 3 minutes), click the run, scroll to
+   **Artifacts**, download the zip, and open `latest.png`. That's your paper.
+   Not happy with something? Edit `bugle.toml` and dry-run again.
+4. Ready? **Run workflow** again with **no boxes checked**. When it's green,
+   open `https://yourusername.github.io/bugle-display/latest.png`
+   (lowercase username). Pages can take a few minutes the first time.
+
+From now on it prints itself every morning at 4:17am, with backup tries at
+5:17 and 5:47 if GitHub is slow. To reprint today's paper after a change,
+run the workflow with **Force print** checked.
+
+**Not on Eastern time?** Set `timezone` in `bugle.toml`, and change the three
+`timezone:` lines near the top of `.github/workflows/bugle.yml` to match.
+
+## Part 6 — The wall (10 minutes)
+
+1. Set up the TRMNL X with the TRMNL app and claim it at **usetrmnl.com**.
+2. **Plugins → Image Display** → paste your display URL from Part 5 → Save.
+3. **Playlist:** make Image Display the only item, so it never rotates.
+4. **Device settings:** set the orientation to match how it hangs (the paper
+   is portrait) and refresh hourly. It only redraws when the image changes,
+   so the screen updates once a day and the battery lasts.
+
+## Part 7 — Changing things later
+
+- **Name, motto, feeds, location:** edit `bugle.toml`. Tomorrow's paper uses it.
+- **Anything bigger** (a new section, layout, tone): open Claude (claude.ai
+  or Claude Code), connect GitHub, give it access to your repository, and
+  describe the change in plain words, e.g. *"make the quote bigger"* or *"add a
+  section for the school lunch menu."* Ask it to do a dry run before it pushes.
+- **Quotes:** the curated list is `CURATED_QUOTES` near the top of
+  `bugle_action.py`. Add your own; the press won't repeat one too soon.
+
+## Troubleshooting
+
+- **The run is red.** Actions → click the run → click the red step. The
+  error is at the bottom. Paste it to Claude.
+- **"No ANTHROPIC_API_KEY secret yet"** means the run skipped on purpose.
+  Check the secret's exact name in Part 3.
+- **The publish step fails with "Permission denied (publickey)".** The deploy
+  key is missing, or "Allow write access" wasn't checked (Part 4, steps 4–5).
+- **The URL shows yesterday's paper.** Pages caches for a few minutes. If it
+  stays stale, check the Actions tab to see whether this morning's run happened.
+- **Local News says "Wire down".** One of your feeds didn't answer. Open its
+  address in a browser; if it's gone, replace it in `bugle.toml`.
+- **No Bird of the Day.** Without an eBird key, or with no nearby sightings
+  that have a verified photo, the bottom section becomes a short Grounds
+  Report or Almanac note instead. That's by design.
+
+## What's private and what's public
+
+- **Private** (your repo): settings, keys, the editor's history, the archive.
+- **Public** (`bugle-display`): only the finished images, which is what's on
+  your wall. Birthdays print first names only. Your location is in the private
+  repo, rounded to about half a mile.
