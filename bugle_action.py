@@ -44,9 +44,21 @@ HISTORY_PATH = HERE / "editorial_history.json"
 CONFIG = tomllib.loads((HERE / "bugle.toml").read_text(encoding="utf-8"))
 PAPER = CONFIG["paper"]
 PAPER_NAME = PAPER["name"].strip()
-TZ = ZoneInfo(PAPER.get("timezone", "America/New_York"))
-LAT = float(CONFIG["location"]["latitude"])
-LON = float(CONFIG["location"]["longitude"])
+LOCATION = CONFIG["location"]
+TZ = ZoneInfo(LOCATION.get("timezone") or PAPER.get("timezone") or "America/New_York")
+LAT = float(LOCATION["latitude"])
+LON = float(LOCATION["longitude"])
+COUNTRY = (LOCATION.get("country_code") or "US").upper()
+WEATHER_CFG = CONFIG.get("weather", {})
+METRIC = WEATHER_CFG.get("units", "us") == "metric"
+PREFS = ge.Preferences(
+    temperature_bias=int(WEATHER_CFG.get("warmth", 0)),
+    humidity_tolerance=int(WEATHER_CFG.get("humidity_tolerance", 0)),
+    rain_tolerance=int(WEATHER_CFG.get("rain_tolerance", 0)),
+    sun_preference=int(WEATHER_CFG.get("sun_preference", 0)),
+    wind_tolerance=int(WEATHER_CFG.get("wind_tolerance", 0)),
+)
+BIRDS_CFG = CONFIG.get("birds", {})
 LAUNCH = PAPER.get("launch_date") or dt.date.today()   # Vol. I
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
 OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-luna")
@@ -253,9 +265,30 @@ def clock(stamp):
     return f"{t.hour % 12 or 12}:{t.minute:02d} {'am' if t.hour < 12 else 'pm'}"
 
 
+def temp(f):
+    """The engine thinks in °F; the page speaks the household's units."""
+    return round((f - 32) * 5 / 9) if METRIC else round(f)
+
+
+def speed(mph):
+    return round(mph * 1.609344) if METRIC else round(mph)
+
+
+def localize(text):
+    """Rewrite the engine's °F / mph / inch phrases for metric households."""
+    if not METRIC or not text:
+        return text
+    text = re.sub(r"(-?\d+(?:\.\d+)?)°F",
+                  lambda m: f"{round((float(m.group(1)) - 32) * 5 / 9)}°C", text)
+    text = re.sub(r"(\d+(?:\.\d+)?) mph",
+                  lambda m: f"{round(float(m.group(1)) * 1.609344)} km/h", text)
+    return re.sub(r"(\d+(?:\.\d+)?) in of snow",
+                  lambda m: f"{round(float(m.group(1)) * 2.54)} cm of snow", text)
+
+
 def get_weather():
     r = get_json("https://api.open-meteo.com/v1/forecast", params=dict(
-        latitude=LAT, longitude=LON, timezone="America/New_York",
+        latitude=LAT, longitude=LON, timezone=TZ.key,
         hourly=ge.OPEN_METEO_HOURLY, daily=ge.OPEN_METEO_DAILY,
         temperature_unit="fahrenheit", wind_speed_unit="mph",
         precipitation_unit="inch", forecast_days=1))
@@ -268,18 +301,22 @@ def get_weather():
             sky = ("clear" if cc < 20 else "mainly clear" if cc < 45
                    else "partly cloudy" if cc < 70 else "overcast")
             hours.append(dict(time=f"{hh:02d}:00",
-                              temp=round(h["temperature_2m"][i]),
-                              feels=round(h["apparent_temperature"][i]),
+                              temp=temp(h["temperature_2m"][i]),
+                              feels=temp(h["apparent_temperature"][i]),
                               rain=h["precipitation_probability"][i], sky=sky,
-                              wind=round(h["wind_speed_10m"][i])))
-    return dict(high=round(d["temperature_2m_max"][0]),
-                low=round(d["temperature_2m_min"][0]),
+                              wind=speed(h["wind_speed_10m"][i])))
+    return dict(units="°C, km/h" if METRIC else "°F, mph",
+                high=temp(d["temperature_2m_max"][0]),
+                low=temp(d["temperature_2m_min"][0]),
                 max_rain=d["precipitation_probability_max"][0],
                 sunrise=clock(d["sunrise"][0]), sunset=clock(d["sunset"][0]),
                 hours=hours, day=ge.day_from_open_meteo(r))
 
 def get_alerts():
-    """Active NWS alerts for the house — the government's words, not vibes."""
+    """Active NWS alerts for the house — the government's words, not vibes.
+    The National Weather Service covers the US only."""
+    if COUNTRY != "US":
+        return []
     try:
         r = get_json("https://api.weather.gov/alerts/active", attempts=2,
                      params=dict(point=f"{LAT},{LON}"), headers=UA)
@@ -293,7 +330,7 @@ def grade_weather(weather, alerts):
     day = weather.get("day")
     if day is None or not day.hourly:
         return None
-    return ge.grade(day, alerts=alerts)
+    return ge.grade(day, preferences=PREFS, alerts=alerts)
 
 def ics_events(url):
     if not url: return []
@@ -340,7 +377,11 @@ def get_headlines():
                         published = published_dt.astimezone(TZ).isoformat()
                         age_hours = round(max(0, (NOW - published_dt.astimezone(TZ))
                                               .total_seconds() / 3600), 1)
-                    items.append(dict(source=name, title=e.title,
+                    outlet = (getattr(e, "source", None) or {}).get("title") or name
+                    title = e.title
+                    if outlet != name and title.endswith(f" - {outlet}"):
+                        title = title[: -len(outlet) - 3]
+                    items.append(dict(source=outlet, title=title,
                                       summary=getattr(e, "summary", "")[:200],
                                       published=published, age_hours=age_hours))
             except Exception:
@@ -354,7 +395,10 @@ def get_bird(recent_editions):
               if ANTHROPIC_API_KEY else None)
     return bird_desk.featured_bird(
         EBIRD_KEY, LAT, LON, recent_editions, seed=f"{NOW:%Y-%m-%d}",
-        headers=UA, photo_path=BIRD_PHOTO, photo_size=BIRD_PHOTO_SIZE, verify=verify)
+        headers=UA, photo_path=BIRD_PHOTO, photo_size=BIRD_PHOTO_SIZE, verify=verify,
+        radius_km=float(BIRDS_CFG.get("radius_km", 8)),
+        days_back=int(BIRDS_CFG.get("days_back", 7)),
+        skip=tuple(BIRDS_CFG.get("skip", ())))
 
 
 def reported_when(obs_dt):
@@ -384,9 +428,9 @@ def grade_brief(report):
         return None
     return dict(
         grade=report.display,
-        driver=(f"{ge.FACTOR_LABELS[report.primary.factor]}: {report.primary.reason}"
+        driver=(f"{ge.FACTOR_LABELS[report.primary.factor]}: {localize(report.primary.reason)}"
                 if report.primary else "No single limiting factor."),
-        factors=[f"{ge.FACTOR_LABELS[f.factor]} {ge.display(f.grade)} — {f.reason}"
+        factors=[f"{ge.FACTOR_LABELS[f.factor]} {ge.display(f.grade)} — {localize(f.reason)}"
                  for f in report.factors],
     )
 
@@ -690,7 +734,7 @@ class CopyDesk:
                 fixed["weather"]["verdict"], fixed["weather"]["editorial"] = WIRE_DOWN
             else:
                 fixed["weather"]["verdict"] = self.report.verdict.capitalize()
-                fixed["weather"]["editorial"] = self.report.editorial
+                fixed["weather"]["editorial"] = localize(self.report.editorial)
         if review.get("bird") and self.bird:
             fixed["grounds"] = safe_bird_caption(self.bird)
         return fixed
@@ -829,7 +873,7 @@ def emergency_editorial(report, raw_headlines, bird):
     if report is None:
         verdict, weather_line = WIRE_DOWN
     else:
-        verdict, weather_line = report.verdict.capitalize(), report.editorial
+        verdict, weather_line = report.verdict.capitalize(), localize(report.editorial)
 
     items = raw_headlines.get("local", {}).get("items", [])[:3]
     heads = [{"head": "Morning wire", "line": shortened(i.get("title", ""), 15)}

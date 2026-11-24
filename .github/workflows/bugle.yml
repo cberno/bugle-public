@@ -2,15 +2,13 @@ name: Print the paper
 
 on:
   schedule:
-    # Three tries each morning; once one succeeds, the others skip.
-    # Not on Eastern time? Change the three timezone lines (and the
-    # timezone in bugle.toml). Avoid minute 0, when GitHub is busiest.
-    - cron: "17 4 * * *"   # 4:17am — the real run
-      timezone: "America/New_York"
-    - cron: "17 5 * * *"   # 5:17am — insurance
-      timezone: "America/New_York"
-    - cron: "47 5 * * *"   # 5:47am — last resort
-      timezone: "America/New_York"
+    # Hourly checks from 08:17 to 14:17 UTC. Each one prints only if it's
+    # between 3am and 10am in the time zone in bugle.toml and today's paper
+    # doesn't exist yet, so the first check after 3am local time prints and
+    # the rest skip in seconds. This covers every US time zone (and gives
+    # Europe a mid-morning paper) with no editing. Elsewhere, change the
+    # hours to the UTC equivalent of about 3am to 9am locally.
+    - cron: "17 8-14 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -49,7 +47,7 @@ jobs:
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
           DISPLAY_REPO: ${{ vars.DISPLAY_REPO }}
         run: |
-          read -r tz paper <<< "$(python3 -c "import tomllib; c = tomllib.load(open('bugle.toml', 'rb')); print(c['paper']['timezone'], c['paper']['name'])")"
+          read -r tz paper <<< "$(python3 -c "import tomllib; c = tomllib.load(open('bugle.toml', 'rb')); print(c.get('location', {}).get('timezone') or c['paper'].get('timezone', 'America/New_York'), c['paper']['name'])")"
           edition=$(TZ="$tz" date +'%A, %B %-d, %Y')
           stamp=$(TZ="$tz" date +%F)
           feed_repo="${DISPLAY_REPO:-${GITHUB_REPOSITORY_OWNER}/bugle-display}"
@@ -69,6 +67,16 @@ jobs:
             echo "::notice::No ANTHROPIC_API_KEY secret yet; see SETUP.md. Nothing printed."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          # Scheduled checks print only in the local early morning.
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            hour=$(TZ="$tz" date +%-H)
+            if [ "$hour" -lt 3 ] || [ "$hour" -gt 10 ]; then
+              echo "It's $(TZ="$tz" date +%H:%M) in $tz; not press time. Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
           fi
 
           # Always check the current remote branch. A queued retry may have

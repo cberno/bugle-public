@@ -1,15 +1,15 @@
 # ──────────────────────────────────────────────────────────────────────────
 #  YOUR NEWSPAPER
-#  Everything that makes the paper yours lives in this file. Edit it on
-#  GitHub (click the file, then the pencil icon) and the next edition obeys.
+#  These are placeholder settings for downtown Washington, DC. To set the
+#  paper up for where you live, run "Set up my paper" from the Actions tab
+#  (see SETUP.md). You can also edit anything here by hand.
 # ──────────────────────────────────────────────────────────────────────────
 
 [paper]
-# The masthead. Anything you like: "The Smith Sentinel", "Daily Dachshund".
-# Long names shrink to fit; under about 24 characters looks best.
+# The masthead. Anything you like. Under about 24 characters looks best.
 name = "The Morning Bugle"
 
-# Printed in the dateline after the date, e.g. "Hometown Edition".
+# Printed in the dateline after the date.
 edition = "Hometown Edition"
 
 # The line at the bottom of every page.
@@ -18,58 +18,70 @@ motto = "Do something you will be proud of today."
 # Vol. I. The volume number counts up by one every day from here.
 launch_date = 2026-12-01
 
-# Your time zone (IANA name): America/New_York, America/Chicago,
-# America/Denver, America/Los_Angeles, Europe/London, ...
-# If you are not on Eastern time, also change the three `timezone:` lines
-# in .github/workflows/bugle.yml so the paper prints at your 4am.
-timezone = "America/New_York"
-
 
 [location]
-# Roughly where you live. Two decimal places is plenty (about half a mile)
-# and keeps your exact address out of the code. Find yours by right-clicking
-# your neighborhood in Google Maps. West and south are negative.
-latitude = 38.90      # CHANGE ME — these defaults are downtown Washington, DC
+# Found by setup. Rounded to two decimals (about half a mile), so your exact
+# address is never stored.
+latitude = 38.90
 longitude = -77.04
+description = "Washington, District of Columbia"
+country_code = "US"
 
-# How the editor should think of where you live.
-description = "Washington, DC"
+# The paper prints in the early morning in this time zone.
+timezone = "America/New_York"
 
 
 [household]
 # Who reads the paper, in a sentence. The editor uses this for tone and
-# context. It never prints names in the weather section.
+# context only.
 description = "a family of four and a beagle"
 
 # The editorial voice in a few words.
 voice = "dry, warm, terse"
 
 
+[weather]
+# "us" (°F, mph) or "metric" (°C, km/h).
+units = "us"
+
+# How your household likes its weather, from -2 to +2. Zero is the standard
+# rubric. These nudge the A-to-F grade; they never hide a weather warning.
+warmth = 0              # +2 if you love heat, -2 if you'd rather it cool
+humidity_tolerance = 0  # +2 if muggy days don't bother you
+rain_tolerance = 0      # +2 if a few showers are fine by you
+sun_preference = 0      # +2 if you really want sun; -2 if clouds are fine
+wind_tolerance = 0      # +2 if wind doesn't bother you
+
+
 [local_news]
-# Section header on weekdays and weekends.
 desk_name = "Local News"
 weekend_desk_name = "Local News — Weekend"
 
-# RSS feeds for the local desk, most local first. Neighborhood blogs and
-# local papers beat wire services. Most news sites have a feed at /feed/ or
-# /rss; search "<site name> RSS" if not. Three or four feeds is plenty.
-feeds = [            # CHANGE ME — these defaults are Washington, DC sources
-  "https://www.popville.com/feed/",
-  "https://wtop.com/feed/",
+# Found and tested by setup, most local first. Add your own favorites:
+# most news sites have a feed at /feed/ or /rss.
+feeds = [
+  "https://www.popville.com/feed/",   # PoPville
+  "https://wtop.com/feed/",   # WTOP
 ]
 
 # The places the editor should favor, closest first. Plain English.
-focus = """Prefer stories from the neighborhoods closest to home; then citywide
-stories that touch daily life there. Neighborhood sources outrank wire copy
-when they carry real news."""
+focus = "Prefer stories from the neighborhoods closest to home; then citywide stories that touch daily life there. Neighborhood sources outrank wire copy when they carry real news."
+
+
+[birds]
+# Bird of the Day comes from eBird reports inside this circle (kilometers).
+# Setup sized it so there are enough species to choose from.
+radius_km = 8
+
+# How many days back to look for reports.
+days_back = 7
+
+# Species never to feature, by common name, e.g. ["European Starling"].
+skip = []
 
 
 [grounds]
-# Optional. The Bird of the Day runs whenever eBird has a nearby sighting
-# with a good photo. On the rare day it can't, the bottom section becomes a
-# short "Grounds Report" about your yard, written from this description.
-# Leave it empty and the editor writes a seasonal note about your area instead.
+# Optional. On the rare day there's no bird, the bottom section becomes a
+# short Grounds Report about your yard, written from this. Leave it empty and
+# the editor writes a seasonal Almanac note for your area instead.
 description = ""
-# Example:
-# description = """A small backyard with a Japanese maple, hydrangeas, a
-# vegetable bed, a bird bath, and a patch of clover lawn."""

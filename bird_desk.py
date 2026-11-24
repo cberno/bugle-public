@@ -41,12 +41,14 @@ def short_place(loc_name):
     return place[:42].rstrip() if place else ""
 
 
-def recent_sightings(api_key, lat, lon, headers, timeout=20):
-    """Most recent report of each species within SEARCH_KM over the past week."""
+def recent_sightings(api_key, lat, lon, headers, timeout=20, radius_km=SEARCH_KM,
+                     days_back=7):
+    """Most recent report of each species within the circle over the past days."""
     if not api_key:
         return []
     r = requests.get("https://api.ebird.org/v2/data/obs/geo/recent",
-                     params=dict(lat=lat, lng=lon, dist=SEARCH_KM, back=7,
+                     params=dict(lat=lat, lng=lon, dist=min(50, max(1, radius_km)),
+                                 back=min(30, max(1, days_back)),
                                  cat="species", maxResults=200),
                      headers={**headers, "X-eBirdApiToken": api_key},
                      timeout=timeout)
@@ -62,7 +64,7 @@ def recent_sightings(api_key, lat, lon, headers, timeout=20):
         try:
             km = km_between(lat, lon, float(o["lat"]), float(o["lng"]))
         except (KeyError, TypeError, ValueError):
-            km = float(SEARCH_KM)
+            km = float(radius_km)
         private = bool(o.get("locationPrivate"))
         out.append(dict(
             common_name=name,
@@ -83,17 +85,18 @@ def recently_featured(history):
     return names
 
 
-def candidate_order(sightings, history, seed):
+def candidate_order(sightings, history, seed, near_km=NEAR_KM, skip=()):
     """Deterministic for the day (retries and proofs agree), varied across days."""
-    featured = recently_featured(history)
+    featured = recently_featured(history) | {s.lower() for s in skip}
     old_copy = " ".join(e.get("grounds", "") for e in history[-NO_REPEAT_EDITIONS:]).lower()
     pool = [s for s in sightings
             if s["common_name"].lower() not in featured
             and s["common_name"].lower() not in old_copy]
     if not pool:
         pool = list(sightings)
-    near = [s for s in pool if s["km"] <= NEAR_KM]
-    far = [s for s in pool if s["km"] > NEAR_KM]
+    pool = [s for s in pool if s["common_name"].lower() not in {k.lower() for k in skip}]
+    near = [s for s in pool if s["km"] <= near_km]
+    far = [s for s in pool if s["km"] > near_km]
     rng = random.Random(seed)
     near.sort(key=lambda s: s["species_code"])
     far.sort(key=lambda s: s["species_code"])
@@ -242,7 +245,8 @@ def prepare_photo(raw, size, focus=None):
 
 
 def featured_bird(api_key, lat, lon, history, seed, headers, photo_path, photo_size,
-                  attempts=8, verify=None, max_checks=8, log=print):
+                  attempts=8, verify=None, max_checks=8, log=print,
+                  radius_km=SEARCH_KM, days_back=7, skip=()):
     """Pick today's bird and save its prepared photo; None if nothing qualifies.
 
     verify(raw_bytes, bird) -> dict(ok, box, reason) is the photo check. If it
@@ -250,12 +254,14 @@ def featured_bird(api_key, lat, lon, history, seed, headers, photo_path, photo_s
     says no, the next photo or bird is tried.
     """
     try:
-        sightings = recent_sightings(api_key, lat, lon, headers)
+        sightings = recent_sightings(api_key, lat, lon, headers,
+                                     radius_km=radius_km, days_back=days_back)
     except Exception as e:
         log(f"eBird desk failed: {e}")
         return None
     checks = 0
-    for bird in candidate_order(sightings, history, seed)[:attempts]:
+    near_km = max(NEAR_KM, radius_km / 2)
+    for bird in candidate_order(sightings, history, seed, near_km, skip)[:attempts]:
         names = (bird["scientific_name"], bird["common_name"])
         try:
             page = wikipedia_page(names, headers, log=log)

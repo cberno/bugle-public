@@ -23,6 +23,10 @@ replaced with plain sourced text.
 on accounts. You'll need a GitHub account, an Anthropic API key (a few dollars
 a month), a free eBird key, and a TRMNL X display.
 
+Setup is one button: tell it where you live and what to call the paper, and
+it finds your weather, time zone, local news sources (testing every feed), and
+the right-sized circle for nearby birds.
+
 ## How it works
 
 ```
@@ -44,26 +48,29 @@ finished image goes to the public display repository the TRMNL reads from.
 
 | File | What it is |
 |---|---|
-| `bugle.toml` | **Your paper.** Name, edition, motto, location, household, news feeds. Start here. |
+| `bugle.toml` | **Your paper.** Name, motto, location, household, weather preferences, news feeds, birds. Written by setup; edit freely. |
+| `setup_paper.py` | The "Set up my paper" button: finds your place, feeds, and bird circle |
 | `bugle_action.py` | The newsroom: gathers the inputs, runs the editor, renders the page |
 | `trmnl_template.html` | The page layout (HTML/CSS, rendered to a 1404×1872 grayscale PNG) |
 | `grade_engine.py` | The weather grade: a deterministic rubric, each factor graded, worst one wins |
 | `bird_desk.py` | Bird of the Day: eBird sighting, Wikipedia/iNaturalist photo, bird-aware crop |
 | `copy_desk.py` | The checks: photo verification and fact-checking against sources |
-| `.github/workflows/bugle.yml` | The schedule (4:17am, with two backup tries) and the publishing steps |
+| `.github/workflows/bugle.yml` | "Print the paper": early-morning schedule and publishing |
+| `.github/workflows/setup.yml` | "Set up my paper": runs `setup_paper.py` and saves `bugle.toml` |
 | `editorial_history.json` | The paper's memory, so quotes, stories, and birds don't repeat. Starts empty. |
 | `tests/` | `python -m unittest discover -s tests` |
 
 ## Making changes
 
-Small changes (name, motto, feeds, location) are one edit in `bugle.toml`.
+Small changes (name, motto, feeds, weather preferences) are one edit in
+`bugle.toml`. Moved? Run "Set up my paper" again.
 For anything bigger, such as a new section, a different layout, or a change in
 tone, the easiest way is to point Claude at your repository and describe what
 you want. SETUP.md, Part 7, covers this.
 
 ## Credits
 
-Weather from [Open-Meteo](https://open-meteo.com) and the
+Weather and place lookup from [Open-Meteo](https://open-meteo.com) and the
 [National Weather Service](https://www.weather.gov). Bird sightings from
 [eBird](https://ebird.org) (Cornell Lab of Ornithology). Photos from
 [Wikimedia Commons](https://commons.wikimedia.org) and

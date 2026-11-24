@@ -21,28 +21,11 @@ browser except one command in Part 4, which you can copy and paste.
 1. On this template's GitHub page, click **Use this template → Create a new
    repository**.
 2. Name it whatever you like (`my-bugle`, `the-herald`, ...).
-3. Choose **Private**. Your history file, archive, and settings will live
-   here, and nobody else needs to see them.
+3. Choose **Private**. Your settings, history, and archive live here, and
+   nobody else needs to see them.
 4. Click **Create repository**.
 
-## Part 2 — Make it yours (10 minutes)
-
-In your new repository, click **`bugle.toml`**, then the **pencil icon** to
-edit. Every line has a comment explaining it. At minimum, change:
-
-- `name`: your paper's name. This is the fun part.
-- `edition`, `motto`, `launch_date` (the day you want Vol. I to be).
-- `latitude` / `longitude`: roughly where you live. Right-click your
-  neighborhood in Google Maps and the coordinates appear at the top of the
-  menu. Two decimals is plenty and keeps your exact address out of it.
-- `description` under `[location]` and `[household]`.
-- `feeds` and `focus` under `[local_news]`: the neighborhood news sources you
-  actually read. Most local sites have a feed at `/feed/` or `/rss`; search
-  "*site name* RSS" if not.
-
-Click **Commit changes**.
-
-## Part 3 — The keys (10 minutes)
+## Part 2 — The keys (10 minutes)
 
 Keys go in GitHub's locked secret store, never in the code. In your
 repository: **Settings → Secrets and variables → Actions → New repository
@@ -58,6 +41,36 @@ secret**. Add each of these (name exactly as written):
 
 Birthdays print **first names only**. That's enforced in the code, because
 the finished image is public.
+
+## Part 3 — Set it up for where you live (5 minutes)
+
+1. In your repository, open the **Actions** tab. If GitHub asks, click
+   **"I understand my workflows, go ahead and enable them."**
+2. Click **Set up my paper** in the left sidebar → **Run workflow**, and fill in:
+   - **Where do you live?** A town, neighborhood, or ZIP code:
+     `Takoma Park, MD`, `20912`, `Bristol, England`. Add the state or country
+     if the name is common.
+   - **Your paper's name.** Anything you like: *The Takoma Times*,
+     *The Daily Dachshund*. Long names shrink to fit.
+   - **Who reads it**, in a sentence (optional): *two adults, a toddler,
+     and a terrier*. The editor uses it for tone.
+3. Click **Run workflow**. In about a minute it:
+   - finds your coordinates (rounded to about half a mile, so your address is
+     never stored), time zone, and units (°F or °C)
+   - turns on National Weather Service alerts if you're in the US
+   - looks for your local news sources, then **fetches every feed** and keeps
+     only the ones that work and are current, with Google News for your town
+     as the backstop
+   - sizes the circle for Bird of the Day from how many species eBird has
+     near you: tight in a city, wider in the country
+4. Click the finished run to see what it chose. Not the right place? Run it
+   again with more detail. Want to look before saving? Check **Preview only**.
+
+Everything it chose is in **`bugle.toml`**. Click the file, then the pencil
+icon, to change anything: add a favorite news feed, set your weather
+preferences (do you love heat? hate wind?), list birds never to feature, or
+change the motto. Running setup again later re-finds location, news, and
+birds, and keeps the rest.
 
 ## Part 4 — The display feed (15 minutes)
 
@@ -99,24 +112,23 @@ private and pushes *only the finished image* to a second, public repository.
 
 ## Part 5 — First edition (10 minutes)
 
-1. In your private repo, open the **Actions** tab. If GitHub asks, click
-   **"I understand my workflows, go ahead and enable them."**
-2. Click **Print the paper** in the left sidebar → **Run workflow** → check
-   **Dry run** → **Run workflow**. A dry run builds the paper without
-   publishing it.
-3. When it turns green (about 3 minutes), click the run, scroll to
+1. **Actions** → **Print the paper** → **Run workflow** → check **Dry run**
+   → **Run workflow**. A dry run builds the paper without publishing it.
+2. When it turns green (about 3 minutes), click the run, scroll to
    **Artifacts**, download the zip, and open `latest.png`. That's your paper.
    Not happy with something? Edit `bugle.toml` and dry-run again.
-4. Ready? **Run workflow** again with **no boxes checked**. When it's green,
+3. Ready? **Run workflow** again with **no boxes checked**. When it's green,
    open `https://yourusername.github.io/bugle-display/latest.png`
    (lowercase username). Pages can take a few minutes the first time.
 
-From now on it prints itself every morning at 4:17am, with backup tries at
-5:17 and 5:47 if GitHub is slow. To reprint today's paper after a change,
-run the workflow with **Force print** checked.
+From now on it prints itself in the early morning, between about 3 and 4am
+your time anywhere in the US. GitHub checks a few times each morning and the
+first check after 3am prints; the rest skip in seconds. To reprint today's
+paper after a change, run **Print the paper** with **Force print** checked.
 
-**Not on Eastern time?** Set `timezone` in `bugle.toml`, and change the three
-`timezone:` lines near the top of `.github/workflows/bugle.yml` to match.
+**Outside the US?** In the UK and western Europe it prints mid-morning
+without any changes. Elsewhere, edit the `cron:` line in
+`.github/workflows/bugle.yml` to the UTC hours that match about 3–9am for you.
 
 ## Part 6 — The wall (10 minutes)
 
@@ -129,7 +141,9 @@ run the workflow with **Force print** checked.
 
 ## Part 7 — Changing things later
 
-- **Name, motto, feeds, location:** edit `bugle.toml`. Tomorrow's paper uses it.
+- **Name, motto, feeds, weather preferences, birds to skip:** edit `bugle.toml`.
+  Tomorrow's paper uses it.
+- **Moved?** Run **Set up my paper** again with the new place.
 - **Anything bigger** (a new section, layout, tone): open Claude (claude.ai
   or Claude Code), connect GitHub, give it access to your repository, and
   describe the change in plain words, e.g. *"make the quote bigger"* or *"add a
@@ -139,23 +153,26 @@ run the workflow with **Force print** checked.
 
 ## Troubleshooting
 
-- **The run is red.** Actions → click the run → click the red step. The
-  error is at the bottom. Paste it to Claude.
+- **A run is red.** Actions → click the run → click the red step. The error
+  is at the bottom. Paste it to Claude.
 - **"No ANTHROPIC_API_KEY secret yet"** means the run skipped on purpose.
-  Check the secret's exact name in Part 3.
+  Check the secret's exact name in Part 2.
+- **Setup picked the wrong town.** Run it again with the state or country:
+  `Springfield, Illinois`, or use a ZIP code.
 - **The publish step fails with "Permission denied (publickey)".** The deploy
   key is missing, or "Allow write access" wasn't checked (Part 4, steps 4–5).
 - **The URL shows yesterday's paper.** Pages caches for a few minutes. If it
   stays stale, check the Actions tab to see whether this morning's run happened.
-- **Local News says "Wire down".** One of your feeds didn't answer. Open its
-  address in a browser; if it's gone, replace it in `bugle.toml`.
+- **Local News says "Wire down".** One of your feeds didn't answer. Run setup
+  again to re-check them, or replace it in `bugle.toml`.
 - **No Bird of the Day.** Without an eBird key, or with no nearby sightings
   that have a verified photo, the bottom section becomes a short Grounds
-  Report or Almanac note instead. That's by design.
+  Report or Almanac note instead. If it happens a lot, raise `radius_km`
+  under `[birds]`.
 
 ## What's private and what's public
 
 - **Private** (your repo): settings, keys, the editor's history, the archive.
 - **Public** (`bugle-display`): only the finished images, which is what's on
-  your wall. Birthdays print first names only. Your location is in the private
-  repo, rounded to about half a mile.
+  your wall. Birthdays print first names only. Your location is stored in the
+  private repo, rounded to about half a mile.

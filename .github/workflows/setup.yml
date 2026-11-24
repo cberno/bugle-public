@@ -1,0 +1,65 @@
+name: Set up my paper
+
+# Run this once after adding your keys (SETUP.md, Part 3), and again any time
+# you move. It finds your location, weather settings, local news feeds, and
+# bird circle, and saves them to bugle.toml. Your paper's name, motto,
+# household, and weather preferences are kept unless you fill them in here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      place:
+        description: "Where do you live? A town, neighborhood, or ZIP code (e.g. 'Takoma Park, MD' or '20912')"
+        required: true
+        type: string
+      paper_name:
+        description: "Your paper's name (leave blank to keep the current one)"
+        required: false
+        type: string
+      household:
+        description: "Who reads it, in a sentence (optional, e.g. 'two adults, a toddler, and a terrier')"
+        required: false
+        type: string
+      dry_run:
+        description: "Preview only: show what setup would choose without saving it"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install
+        run: pip install -q requests feedparser
+
+      - name: Find everything local
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          EBIRD_API_KEY: ${{ secrets.EBIRD_API_KEY }}
+          # Inputs pass through the environment, never pasted into the script.
+          PLACE: ${{ inputs.place }}
+          PAPER_NAME: ${{ inputs.paper_name }}
+          HOUSEHOLD: ${{ inputs.household }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          args=(--place "$PLACE" --name "$PAPER_NAME" --household "$HOUSEHOLD")
+          if [ "$DRY_RUN" = "true" ]; then args+=(--dry-run); fi
+          python setup_paper.py "${args[@]}"
+
+      - name: Save the settings
+        if: ${{ !inputs.dry_run }}
+        env:
+          PLACE: ${{ inputs.place }}
+        run: |
+          git config user.name "Set up my paper"
+          git config user.email "bugle@users.noreply.github.com"
+          git add bugle.toml
+          git commit -m "Set up the paper for $PLACE" || echo "No changes"
+          git push
