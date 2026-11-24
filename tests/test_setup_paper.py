@@ -54,6 +54,16 @@ class PlaceTests(unittest.TestCase):
         self.assertEqual(seen["countryCode"], "US")
         self.assertEqual(place["name"], "Takoma Park")
 
+    def test_a_stalled_lookup_is_retried_then_explained(self):
+        calls = []
+        def get(*a, **kw):
+            calls.append(1)
+            raise sp.requests.ReadTimeout("slow")
+        with patch.object(sp.requests, "get", side_effect=get), patch.object(sp.time, "sleep"):
+            with self.assertRaisesRegex(SystemExit, "didn't answer"):
+                sp.geocode("Bristol, England")
+        self.assertEqual(len(calls), 3)
+
     def test_unknown_place_explains_itself(self):
         with patch.object(sp.requests, "get", return_value=Response(payload={})):
             with self.assertRaisesRegex(SystemExit, "Couldn't find"):

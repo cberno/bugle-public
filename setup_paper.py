@@ -23,6 +23,7 @@ import datetime as dt
 import json
 import os
 import re
+import time
 import tomllib
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -62,6 +63,22 @@ def log(msg):
     print(msg, flush=True)
 
 
+def fetch(url, attempts=3, pause=3, **kw):
+    """GET with retries; public APIs here occasionally stall for a few seconds."""
+    kw.setdefault("timeout", 20)
+    kw.setdefault("headers", UA)
+    for attempt in range(attempts):
+        try:
+            r = requests.get(url, **kw)
+            if r.status_code < 500:
+                return r
+        except requests.RequestException:
+            if attempt == attempts - 1:
+                raise
+        time.sleep(pause * 3 ** attempt)
+    return r
+
+
 # ---------------- 1. where ----------------
 def split_place(text):
     """'Takoma Park, MD' -> ('Takoma Park', 'md'); '20912' -> ('20912', '')."""
@@ -95,9 +112,12 @@ def geocode(text):
     params = dict(name=name, count=10, language="en", format="json")
     if re.fullmatch(r"\d{5}", name):
         params["countryCode"] = "US"
-    r = requests.get("https://geocoding-api.open-meteo.com/v1/search", params=params,
-                     headers=UA, timeout=20)
-    r.raise_for_status()
+    try:
+        r = fetch("https://geocoding-api.open-meteo.com/v1/search", params=params)
+        r.raise_for_status()
+    except requests.RequestException as e:
+        raise SystemExit("The place lookup service (Open-Meteo) didn't answer "
+                         f"({type(e).__name__}). Run setup again in a minute.")
     place = choose_place(r.json().get("results") or [], qualifier)
     if not place:
         raise SystemExit(f"Couldn't find '{text}'. Try a town and state, like "
@@ -180,7 +200,7 @@ def check_feed(url, now=None):
     items, and has published something recently."""
     now = now or dt.datetime.now(dt.timezone.utc)
     try:
-        r = requests.get(url, headers=UA, timeout=12)
+        r = fetch(url, attempts=2, pause=2, timeout=12)
         if r.status_code != 200:
             return dict(ok=False, reason=f"HTTP {r.status_code}")
         feed = feedparser.parse(r.content)
@@ -244,17 +264,17 @@ def focus_text(place, hoods):
 
 # ---------------- 3. birds ----------------
 def ebird_species_count(lat, lon, km, key):
-    r = requests.get("https://api.ebird.org/v2/data/obs/geo/recent", params=dict(
+    r = fetch("https://api.ebird.org/v2/data/obs/geo/recent", params=dict(
         lat=lat, lng=lon, dist=km, back=14, cat="species", maxResults=500),
-        headers={**UA, "X-eBirdApiToken": key}, timeout=20)
+        headers={**UA, "X-eBirdApiToken": key})
     r.raise_for_status()
     return len({o.get("speciesCode") for o in r.json()})
 
 
 def nearest_hotspots(lat, lon, key, n=3):
-    r = requests.get("https://api.ebird.org/v2/ref/hotspot/geo", params=dict(
+    r = fetch("https://api.ebird.org/v2/ref/hotspot/geo", params=dict(
         lat=lat, lng=lon, dist=15, fmt="json"),
-        headers={**UA, "X-eBirdApiToken": key}, timeout=20)
+        headers={**UA, "X-eBirdApiToken": key})
     r.raise_for_status()
     spots = r.json()
     spots.sort(key=lambda h: (h.get("lat", 0) - lat) ** 2 + (h.get("lng", 0) - lon) ** 2)
